@@ -1,0 +1,164 @@
+---
+title: "Google Data Analytics Capstone Case Study"
+author: "Odinakachukwu Egwuekwe ,"
+date: "2023-11-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(readr)
+```
+## Business Task:
+
+- Objective:
+
+-- Gain actionable insights into smart device usage trends to inform Bellabeat's marketing strategy and enhance the user experience.
+
+## Specific Tasks:
+
+- Explore Non-Bellabeat Smart Device Usage:
+
+-- Collect and analyze data on the usage patterns of non-Bellabeat smart devices.
+
+-- Identify trends, patterns, and key metrics related to consumer interactions with these devices.
+
+- Draw Parallels to Bellabeat Customers:
+
+-- Translate insights from non-Bellabeat smart device usage into potential opportunities for Bellabeat.
+
+-- Develop recommendations on how Bellabeat can leverage these trends to enhance its product offerings, features, or marketing campaigns.
+
+## Deliverables:
+
+- Comprehensive analysis report on non-Bellabeat smart device usage trends.
+
+-- The data was collected externally from a public dataset, click [see link](https://www.kaggle.com/datasets/arashnic/fitbit) for more details on licensing and security. 
+
+-- The data is compressed in a Zip file and contains 18 CSV files measuiring an activity of interest.
+
+--. Thirty eligible Fitbit users consented to the submission of personal tracker data. It includes information about daily activity, steps, and heart rate that can be used to explore users’ habits.
+
+-- No issues with privacy as no user PII was present in the data.
+
+-- The files have consistent columns and each column has the correct type of data.
+
+-- The dataset might present key information on user trends on non-fitbit devices
+
+-- The dataset's limitations, including a two-month duration and geographical constraints, pose challenges for comprehensive data analysis. Insights may not accurately represent the targeted region, potentially impacting the efficacy of marketing strategies. To address this, extending the data collection period to ten months is recommended for a more nuanced understanding of long-term trends, seasonality, and consumer behavior. Strategic decisions should be made cautiously, considering the dataset's scope and potential biases.
+
+#### Data Cleaning process
+- Two datasets containing the merged Daily Activity and Merged sleepd activity were selected for the analysis 
+- Using spreadsheets:
+
+-- The sheets were formatted using condtional formatting to check for blanks and was later filtered by each row to ensure there were no blanks.
+
+-- the ActivityDate column was reformatted to display only the date.
+
+-- A new column was created in the daily Activity sheet to extract the day of the week correpsonding to the respective date
+
+-- the Total Distance was recalculated in new column (By summing each row in the  (VeryActiveDistance, ModeratelyActiveDistance, LightActiveDistance,SedentaryActiveDistance). cpmparison with the TotalDistance column revealed certain discrepancies which could be as a result of approximation or input error.
+
+-- Columns not relevant to the analysis was dropped/removed from the daily activity sheet and a New spreadsheet name DailyActivityCleaned.CSV was created.
+
+#### Analysis:
+- The two spreadsheets were joined using SQL joins and the some aggregated metrics were obtained using the below code:
+
+-This SQL query retrieves aggregated daily activity metrics, including average steps, distance, calories, very active minutes, sedentary minutes, and total minutes asleep. It combines data from the "daily_activity" and "sleep_data" tables using an inner join on the common column "ActivityDate" and groups the results by the "DayOfActivity" field. The query provides a consolidated view of average fitness and sleep-related metrics for each day.
+
+{
+SELECT 
+
+  DayOfActivity as day_of_activity, 
+  
+  Round(AVG(TotalSteps),2)as average_steps,
+  
+  Round(AVG(TotalDistanceCalc),2) as average_distance,
+  
+  Round(AVG(Calories),2) as avg_calories,
+  
+  Round(AVG(VeryActiveMinutes),2) as average_active_minutes,
+  
+  Round(AVG(SedentaryMinutes),2) as average_sedentary_minutes,
+  
+  Round(AVG(TotalMinutesAsleep),2) as average_time_asleep
+
+  FROM `sonic-falcon-404009.fitbit_data.daily_activity` as daily_activity
+
+INNER JOIN
+  `sonic-falcon-404009.fitbit_data.sleep_data`as sleep_day
+ON
+ daily_activity.ActivityDate = sleep_day.ActivityDate
+
+GROUP BY DayOfActivity
+}
+
+- The resulting data from the query was exported into R for Visualization for further insights
+
+
+
+# Importing the data
+```{r}
+fitbit_data<-read.csv("Fitbit_Aggregated_data.csv")
+head(fitbit_data)
+```
+
+## Reformatting the data frame to a longer format
+```{r}
+fitbit_new<-fitbit_data%>%
+  pivot_longer(cols=-day_of_activity,names_to="Metric",values_to = "Value")
+```
+
+
+## Visualizing the aggregated metrics
+
+### BAR CHART
+```{r}
+
+ggplot(fitbit_new, aes(x = day_of_activity, y = Value, fill = Metric)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  labs(title = "Daily Averages",
+       x = "Day of Activity",
+       y = "Average Value") +
+  facet_wrap(~ Metric, scales = "free_y", ncol = 2) +
+ # theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+```
+
+### Line Chart to clearly visualize the daily trends
+```{r}
+ggplot(fitbit_new, aes(x = day_of_activity, y = Value, color = Metric,group= Metric)) +
+  geom_point() +
+  geom_line()+
+  labs(title = "Daily Averages",
+       x = "Day of Activity",
+       y = "Average Value") +
+  facet_wrap(~ Metric, scales = "free_y", ncol = 2) +
+ # theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
+
+### Key Observations from the Fitbit Tracker Data:
+
+- Mondays consistently record the highest average calorie burn among users. This suggests a notable surge in physical activity at the beginning of the week.
+
+- Conversely, **Thursdays** show the lowest average calorie expenditure. Recognizing this trend presents an opportunity to incentivize or inspire users to maintain or elevate activity levels towards the end of the week.
+
+- Users cover the greatest distance and take the highest number of steps on average on  **Mondays**. This underscores the importance of leveraging Mondays as a strategic day for fitness-related campaigns and challenges.
+
+- **Sundays** exhibit the least distance covered and steps taken, indicating a potential day of lower physical activity. Crafting initiatives to encourage more movement on Sundays could enhance overall weekly activity levels.
+
+- **Wednesdays** stand out as the day when users are most active on average. Aligning engagement strategies, promotions, or wellness content with this mid-week peak could capitalize on heightened user activity.
+
+- **Tuesday** has the highest average time asleep and **Thursday** has the lowest average time asleep.
+
+### Recommendations:
+- Recognize Thursday as a day with lower activity levels and consider implementing strategies to boost engagement, such as special promotions, challenges, or content releases tailored to encourage physical activity.
+
+- Further analysis incorporating user demographics and a more extended timeframe is recommended to gain a comprehensive understanding of user behaviors and preferences, allowing for more nuanced insights and refined strategic decision-making.
